@@ -21,7 +21,6 @@ async function readCsv (csvFile) {
 
 async function main () {
   let unitData = await readCsv(process.argv[2])
-
   unitData = _.chain(unitData)
     .filter('unit')
     .map(function (row) {
@@ -36,7 +35,6 @@ async function main () {
     .value()
 
   let acrisData = await readCsv(path.join(__dirname, 'acris.csv'))
-
   acrisData = _.chain(acrisData)
     .filter('unit')
     .filter((row) => {
@@ -48,13 +46,28 @@ async function main () {
     })
     .value()
 
+  let rentalData = await readCsv(process.argv[3])
+  rentalData = _.chain(rentalData)
+    .map((row) => {
+      row.unit = row.unit.replace('#', '')
+      row.rent = row.rent.replace(/[$,]/g, '')
+      return row
+    })
+    .keyBy('unit')
+    .mapValues('rent')
+    .value()
+
   _.each(acrisData, (data, unit) => {
     _.assign(unitData[unit], {
       sold: !!data.DEED?.unit,
       sold_on: moment(data.DEED?.document_date).format('MM/DD/YYYY'),
+      sold_on_quarter: moment(data.DEED?.document_date).format('[Q]Q-YYYY'),
       sold_for: data.DEED?.document_amt,
       mortgage: !!data.MTGE?.unit,
-      mortgage_amount: data.MTGE?.document_amt
+      mortgage_amount: data.MTGE?.document_amt,
+      mortgage_down_payment: data.MTGE?.document_amt ? data.DEED?.document_amt - data.MTGE?.document_amt : null,
+      rented: !!rentalData[unit],
+      rented_for: rentalData[unit]
     })
   })
 
